@@ -15,6 +15,7 @@ Route::get('/health', function () {
 // Rutas protegidas con JWT (requieren Header Authorization: Bearer <token>)
 Route::middleware('auth:api')->group(function () {
     Route::get('recolecciones', [RecoleccionController::class, 'index']);
+    Route::post('rutas/despachar', [RecoleccionController::class, 'despacharRuta']);
     Route::get('chofer/ruta', [RecoleccionController::class, 'rutaDeChofer']);
     Route::post('recolecciones/iniciar', [RecoleccionController::class, 'iniciarRecoleccion']);
     Route::post('recolecciones/{id}/contenedor', [RecoleccionController::class, 'recolectarContenedor'])->whereNumber('id');
