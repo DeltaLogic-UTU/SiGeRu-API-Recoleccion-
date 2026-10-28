@@ -10,6 +10,10 @@ class RecoleccionController extends Controller
 {
     private function archivoDespachos(): string
     {
+        $rutaCompartida = dirname(base_path()) . DIRECTORY_SEPARATOR . 'SiGeRu-API-Recoleccion' . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'rutas_despachadas.json';
+        if (is_dir(dirname($rutaCompartida))) {
+            return $rutaCompartida;
+        }
         return storage_path('app/rutas_despachadas.json');
     }
 
@@ -76,12 +80,31 @@ class RecoleccionController extends Controller
             $datos['contenedores']
         )));
 
+        $idRuta = $datos['id_ruta'] ?? $camion->id_ruta;
+        if (!empty($datos['circuitos'][0])) {
+            $primerCircuito = $datos['circuitos'][0];
+            $rutaRow = DB::table('rutas')->where('circuito', $primerCircuito)->first();
+            if (!$rutaRow) {
+                $circuitoRow = DB::table('circuitos')->where('id_circuito', $primerCircuito)->first();
+                if ($circuitoRow) {
+                    $idRuta = DB::table('rutas')->insertGetId([
+                        'circuito' => $primerCircuito,
+                        'nombre' => 'Circuito ' . $primerCircuito,
+                        'municipio' => $circuitoRow->municipio ?? 'A',
+                        'estado' => 'Asignada'
+                    ]);
+                }
+            } else {
+                $idRuta = $rutaRow->id_ruta;
+            }
+        }
+
         $despachos = $this->leerDespachos();
         $despacho = [
             'id_camion' => (int) $camion->id_camion,
             'matricula' => $camion->matricula,
             'id_chofer' => $camion->id_chofer ? (int) $camion->id_chofer : null,
-            'id_ruta' => $datos['id_ruta'] ?? $camion->id_ruta,
+            'id_ruta' => $idRuta,
             'circuitos' => $datos['circuitos'],
             'ids_contenedores' => $idsContenedores,
             'contenedores_procesados' => [],
@@ -99,6 +122,7 @@ class RecoleccionController extends Controller
         DB::table('camiones')
             ->where('id_camion', $camion->id_camion)
             ->update([
+                'id_ruta' => $idRuta,
                 'contenedores_asignados' => count($idsContenedores),
                 'contenedores_recolectados' => 0,
                 'km_en_turno' => (float) $datos['distanciaKm']
